@@ -341,14 +341,12 @@ if menu == "🏠 Home":
             gridcolor="rgba(255, 255, 255, 0.05)"
         ),
         yaxis=dict(
-            title="Solar Generation (kWh)",
-            titlefont=dict(color="#f59e0b"),
+            title=dict(text="Solar Generation (kWh)", font=dict(color="#f59e0b")),
             tickfont=dict(color="#f59e0b"),
             gridcolor="rgba(255, 255, 255, 0.05)"
         ),
         yaxis2=dict(
-            title="Solar Irradiance (W/m²)",
-            titlefont=dict(color="#38bdf8"),
+            title=dict(text="Solar Irradiance (W/m²)", font=dict(color="#38bdf8")),
             tickfont=dict(color="#38bdf8"),
             showgrid=False
         )
