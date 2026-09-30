@@ -181,8 +181,22 @@ def load_datasets():
 @st.cache_resource
 def load_model_bundle():
     model_path = "model.pkl" if os.path.exists("model.pkl") else "Solar_Energy_Prediction/model.pkl"
-    with open(model_path, "rb") as f:
-        bundle = pickle.load(f)
+    if os.path.exists(model_path):
+        try:
+            with open(model_path, "rb") as f:
+                bundle = pickle.load(f)
+            return bundle
+        except Exception:
+            # Handle incompatible scikit-learn pickle dtypes (e.g. node array dtype mismatch across sklearn versions)
+            pass
+    
+    # Dynamically train fresh bundle matching the current runtime environment
+    try:
+        from train_and_evaluate import train_model_bundle
+    except ImportError:
+        from Solar_Energy_Prediction.train_and_evaluate import train_model_bundle
+        
+    bundle = train_model_bundle(save_to_disk=True, verbose=False)
     return bundle
 
 raw_df, clean_df = load_datasets()
