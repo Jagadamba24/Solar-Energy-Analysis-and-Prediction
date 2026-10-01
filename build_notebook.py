@@ -370,7 +370,33 @@ print(f"\\nPerformance Metrics:")
 print(f"  R-squared (R²)    : {mlr_r2:.4f}")
 print(f"  Adjusted R²       : {adj_r2:.4f}")
 print(f"  MAE               : {mlr_mae:.4f} kWh")
-print(f"  RMSE              : {mlr_rmse:.4f} kWh")""")
+print(f"  RMSE              : {mlr_rmse:.4f} kWh")
+
+# Visualizing Multiple Linear Regression
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+# 1. Actual vs Predicted Plot with 45° line
+axes[0].scatter(y_test, y_pred_mlr, alpha=0.35, color="#2563eb", edgecolors="none", s=25)
+max_val = max(y_test.max(), y_pred_mlr.max())
+min_val = min(y_test.min(), y_pred_mlr.min())
+axes[0].plot([min_val, max_val], [min_val, max_val], "r--", linewidth=2, label="Ideal Fit (y = x)")
+axes[0].set_title(f"Multiple Linear Regression: Actual vs. Predicted (R² = {mlr_r2:.4f})", fontsize=11, fontweight="bold")
+axes[0].set_xlabel("Actual Solar Energy (kWh)")
+axes[0].set_ylabel("Predicted Solar Energy (kWh)")
+axes[0].legend(loc="upper left")
+axes[0].grid(True, linestyle=":", alpha=0.6)
+
+# 2. Coefficients Impact Bar Chart
+coef_series = pd.Series(mlr.coef_, index=feature_cols).sort_values()
+colors = ["#ef4444" if c < 0 else "#10b981" for c in coef_series.values]
+coef_series.plot(kind="barh", ax=axes[1], color=colors, edgecolor="black", linewidth=0.5)
+axes[1].axvline(0, color="black", linestyle="-", linewidth=0.8)
+axes[1].set_title("MLR Feature Coefficients (Effect & Direction)", fontsize=11, fontweight="bold")
+axes[1].set_xlabel("Coefficient Value")
+axes[1].grid(True, linestyle=":", alpha=0.6)
+
+plt.tight_layout()
+plt.show()""")
 
 # Step 14
 add_md("""### Step 14 — Residual Analysis

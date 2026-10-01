@@ -908,6 +908,113 @@ elif menu == "📉 Regression":
         })
         st.dataframe(coef_df, use_container_width=True)
         
+        st.markdown("##### Multiple Linear Regression Visualizations")
+        
+        # Sample data for responsive plotting
+        sample_mlr = clean_df.sample(n=min(1500, len(clean_df)), random_state=42).copy()
+        X_mlr_sample = sample_mlr[bundle["feature_cols"]]
+        sample_mlr["Predicted_Energy"] = bundle["mlr_model"].predict(X_mlr_sample)
+        sample_mlr["Residual"] = sample_mlr["Solar_Energy"] - sample_mlr["Predicted_Energy"]
+        
+        col_mlr1, col_mlr2 = st.columns(2)
+        
+        with col_mlr1:
+            # Graph 1: Actual vs. Predicted Generation with 45° Ideal Line
+            fig_avp = px.scatter(
+                sample_mlr, x="Solar_Energy", y="Predicted_Energy",
+                color="Residual",
+                color_continuous_scale="Turbo",
+                title=f"Actual vs. Predicted Solar Energy (R² = {mlr_meta['r2']:.4f})",
+                labels={
+                    "Solar_Energy": "Actual Solar Energy (kWh)",
+                    "Predicted_Energy": "Predicted Solar Energy (kWh)",
+                    "Residual": "Residual (kWh)"
+                },
+                opacity=0.6,
+                hover_data=["Solar_Irradiance", "Temperature"]
+            )
+            max_limit = max(sample_mlr["Solar_Energy"].max(), sample_mlr["Predicted_Energy"].max())
+            fig_avp.add_trace(go.Scatter(
+                x=[0, max_limit], y=[0, max_limit],
+                mode="lines", name="Ideal Fit (y = x)",
+                line=dict(color="#ef4444", width=2.5, dash="dash")
+            ))
+            fig_avp.update_layout(
+                template="plotly_dark",
+                height=420,
+                legend=dict(yanchor="top", y=0.98, xanchor="left", x=0.02)
+            )
+            st.plotly_chart(fig_avp, use_container_width=True)
+            st.caption("📌 **Actual vs. Predicted Plot:** Evaluates the 5-dimensional regression model. Points tightly clustered along the red dashed 45° line confirm high predictive precision ($R^2 = 0.9948$).")
+            
+        with col_mlr2:
+            # Graph 2: Feature Coefficients Bar Chart (Direction & Magnitude)
+            coef_plot_df = coef_df.copy()
+            coef_plot_df["Impact"] = coef_plot_df["Coefficient"].apply(
+                lambda x: "Positive Driver (+)" if x >= 0 else "Negative Derating (-)"
+            )
+            fig_coef = px.bar(
+                coef_plot_df, x="Coefficient", y="Feature", orientation="h",
+                color="Impact",
+                color_discrete_map={
+                    "Positive Driver (+)": "#10b981",
+                    "Negative Derating (-)": "#ef4444"
+                },
+                title="Regression Coefficients (Effect on Generation)",
+                labels={"Coefficient": "OLS Partial Slope Coefficient", "Feature": "Covariate"}
+            )
+            fig_coef.add_vline(x=0, line_color="#94a3b8", line_width=1)
+            fig_coef.update_layout(template="plotly_dark", height=420)
+            st.plotly_chart(fig_coef, use_container_width=True)
+            st.caption("📌 **Coefficient Impact:** Illustrates individual feature sensitivity: Solar Irradiance dominates positively, while Temperature derates panel efficiency (-0.024 kWh/°C).")
+            
+        # Graph 3: 3D Multiple Regression Plane (Interactive Expander)
+        with st.expander("🌐 3D Interactive Multiple Regression Plane (Irradiance × Temperature → Generation)", expanded=False):
+            st.markdown("Visualizing the fitted regression plane over the two strongest physical covariates (holding Humidity, Wind Speed, and Cloud Cover constant at their means).")
+            
+            irr_vals = np.linspace(clean_df["Solar_Irradiance"].min(), clean_df["Solar_Irradiance"].max(), 30)
+            temp_vals = np.linspace(clean_df["Temperature"].min(), clean_df["Temperature"].max(), 30)
+            irr_grid, temp_grid = np.meshgrid(irr_vals, temp_vals)
+            
+            plane_features = pd.DataFrame({
+                "Solar_Irradiance": irr_grid.ravel(),
+                "Temperature": temp_grid.ravel(),
+                "Humidity": clean_df["Humidity"].mean(),
+                "Wind_Speed": clean_df["Wind_Speed"].mean(),
+                "Cloud_Cover": clean_df["Cloud_Cover"].mean()
+            })
+            z_plane = bundle["mlr_model"].predict(plane_features).reshape(irr_grid.shape)
+            
+            fig_3d = go.Figure()
+            # 3D points
+            fig_3d.add_trace(go.Scatter3d(
+                x=sample_mlr["Solar_Irradiance"],
+                y=sample_mlr["Temperature"],
+                z=sample_mlr["Solar_Energy"],
+                mode="markers",
+                marker=dict(size=2.5, color=sample_mlr["Solar_Energy"], colorscale="Viridis", opacity=0.45),
+                name="Observed Data Points"
+            ))
+            # 3D regression plane
+            fig_3d.add_trace(go.Surface(
+                x=irr_vals, y=temp_vals, z=z_plane,
+                colorscale="YlOrRd", opacity=0.65, showscale=False,
+                name="Fitted OLS Plane"
+            ))
+            fig_3d.update_layout(
+                title="3D Multiple Regression Hyperplane (Irradiance vs. Temperature vs. Generation)",
+                scene=dict(
+                    xaxis_title="Solar Irradiance (W/m²)",
+                    yaxis_title="Temperature (°C)",
+                    zaxis_title="Solar Energy (kWh)",
+                    camera=dict(eye=dict(x=1.6, y=-1.6, z=1.2))
+                ),
+                template="plotly_dark",
+                height=540,
+                margin=dict(l=0, r=0, b=0, t=40)
+            )
+            st.plotly_chart(fig_3d, use_container_width=True)
+            
     with tab3:
         st.markdown("#### Residual Diagnostics & Assumption Verification")
         st.markdown("Evaluating OLS assumptions: linearity, homoscedasticity (constant error variance), and zero-mean residual distribution.")
